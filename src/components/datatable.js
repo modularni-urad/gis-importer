@@ -1,7 +1,10 @@
-/* global axios, API, Papa, SMap, L, location */
+/* global axios, API, Papa, SMap, L, location, alert */
 
 const q = new URLSearchParams(window.location.search)
 const layerid = q.get('layerid')
+if (!layerid) {
+  alert('chybí req param layerid. Máte špatný odkaz')
+}
 
 export default {
   data: () => {
@@ -10,43 +13,59 @@ export default {
       fields: [
         {
           key: 'title',
-          label: 'adresa',
+          label: 'Titulek',
           sortable: true
         },
         {
           key: 'secret',
           label: 'Tajné',
           sortable: false
+        },
+        {
+          key: 'descr',
+          label: 'Popis',
+          sortable: false
         }
       ],
       items: [],
+      addressLoaded: false,
+      failedRows: [],
       working: false
     }
   },
   methods: {
     submit: function () {
       const data = this.$data
-      const map = this.$props.map
       Papa.parse(this.$data.file, {
         delimiter: ':',
         header: true,
         complete: function (results) {
-          results.data.map(i => {
-            i.point = null
-            const p = new SMap.Geocoder(i.title, (res) => {
-              const r = res.getResults()
-              if (r.length && r[0].results && r[0].results.length) {
-                const gps = r[0].results[0].coords
-                i.point = {
-                  type: 'Point',
-                  coordinates: [gps.y, gps.x]
-                }
-                L.marker([gps.y, gps.x]).addTo(map).bindPopup(i.title)
-              }
-            })
-          })
           data.items = results.data
         }
+      })
+    },
+    geoCode: async function () {
+      const map = this.$props.map
+      var processed = 0
+      this.$data.items.map(i => {
+        i.point = null
+        const p = new SMap.Geocoder(i.address, (res) => {
+          const r = res.getResults()
+          if (r.length && r[0].results && r[0].results.length) {
+            const gps = r[0].results[0].coords
+            i.point = {
+              type: 'Point',
+              coordinates: [gps.y, gps.x]
+            }
+            L.marker([gps.y, gps.x]).addTo(map).bindPopup(i.title)
+          } else {
+            this.$data.failedRows.push(i)
+          }
+          processed += 1
+          if (processed === this.$data.items.length && this.$data.failedRows.length === 0) {
+            this.$data.addressLoaded = true
+          }
+        })
       })
     },
     save: async function () {
@@ -90,8 +109,15 @@ export default {
         :fields="fields"
         :items="items"
       ></b-table>
-      <b-button class="mt-3" @click="save">
+      <div v-if="failedRows.length > 0">
+        <h3>Neúspěšná hledání</h3>
+        {{ JSON.stringify(failedRows) }}
+      </div>
+      <b-button v-if="addressLoaded" class="mt-3" @click="save">
         Uložit
+      </b-button>
+      <b-button class="mt-3" @click="geoCode">
+        Získat adresy
       </b-button>
     </div>
   </div>
