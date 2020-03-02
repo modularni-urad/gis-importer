@@ -1,9 +1,21 @@
-/* global axios, API, Papa, SMap, L, location, alert */
+/* global axios, API, Papa, SMap, L, location, alert, */
 
 const q = new URLSearchParams(window.location.search)
 const layerid = q.get('layerid')
 if (!layerid) {
   alert('chybí req param layerid. Máte špatný odkaz')
+}
+function toGeoJSON (items) {
+  return {
+    type: 'FeatureCollection',
+    features: items.map(i => {
+      return {
+        type: 'Feature',
+        properties: i.properties,
+        geometry: i.point
+      }
+    })
+  }
 }
 
 export default {
@@ -12,18 +24,13 @@ export default {
       file: null,
       fields: [
         {
-          key: 'title',
-          label: 'Titulek',
+          key: 'address',
+          label: 'adresa',
           sortable: true
         },
         {
-          key: 'secret',
-          label: 'Tajné',
-          sortable: false
-        },
-        {
-          key: 'descr',
-          label: 'Popis',
+          key: 'properties',
+          label: 'Props',
           sortable: false
         }
       ],
@@ -40,7 +47,12 @@ export default {
         delimiter: ':',
         header: true,
         complete: function (results) {
-          data.items = results.data
+          data.items = results.data.map(i => {
+            return {
+              properties: i,
+              address: i.address
+            }
+          })
         }
       })
     },
@@ -57,7 +69,7 @@ export default {
               type: 'Point',
               coordinates: [gps.y, gps.x]
             }
-            L.marker([gps.y, gps.x]).addTo(map).bindPopup(i.title)
+            L.marker([gps.y, gps.x]).addTo(map).bindPopup(i.properties)
           } else {
             this.$data.failedRows.push(i)
           }
@@ -71,7 +83,8 @@ export default {
     save: async function () {
       try {
         this.$data.working = true
-        await axios.post(`${API}/objs/${layerid}/batch`, this.$data.items)
+        const data = toGeoJSON(this.$data.items)
+        await axios.post(`${API}/objs/${layerid}`, data)
         this.$store.dispatch('toast', {
           message: 'Uloženo',
           type: 'success'

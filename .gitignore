@@ -9,3 +9,4 @@ js/main.js
 *.sh
 *.sqlite
 .cache
+./dist/bundle.js
