@@ -1,0 +1,17 @@
+{
+  "name": "modularni-urad-gis-importer",
+  "version": "0.1.0",
+  "author": "Vaclav Klecanda <vencax77@gmail.com> (http://vxk.cz)",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "browser-sync start --port 8080 --server 'src' --files 'src' --single",
+    "build": "rollup src/main.js --file dist/bundle.js --format iife"
+  },
+  "devDependencies": {
+    "browser-sync": "^2.24.1"
+  },
+  "dependencies": {
+    "rollup": "^1.29.1"
+  }
+}
