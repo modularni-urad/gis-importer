@@ -74,7 +74,7 @@ export default {
             this.$data.failedRows.push(i)
           }
           processed += 1
-          if (processed === this.$data.items.length && this.$data.failedRows.length === 0) {
+          if (processed === this.$data.items.length) {
             this.$data.addressLoaded = true
           }
         })
