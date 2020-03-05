@@ -58,33 +58,32 @@ export default {
     },
     geoCode: async function () {
       const map = this.$props.map
-      var processed = 0
-      this.$data.items.map(i => {
+      const promises = this.$data.items.map(i => {
         i.point = null
-        const p = new SMap.Geocoder(i.address, (res) => {
-          const r = res.getResults()
-          if (r.length && r[0].results && r[0].results.length) {
-            const gps = r[0].results[0].coords
+        return axios.get(`http://api.mapy.cz/geocode?query=${i.address}`)
+          .then(res => {
+            const parsed = window.parseXml(res.data)
+            const gps = parsed.result.point.item
             i.point = {
               type: 'Point',
               coordinates: [gps.y, gps.x]
             }
             L.marker([gps.y, gps.x]).addTo(map).bindPopup(i.properties)
-          } else {
+          })
+          .catch(_ => {
             this.$data.failedRows.push(i)
-          }
-          processed += 1
-          if (processed === this.$data.items.length) {
-            this.$data.addressLoaded = true
-          }
-        })
+          })
       })
+      await Promise.all(promises)
+      this.$data.addressLoaded = true
     },
     save: async function () {
       try {
         this.$data.working = true
         const data = toGeoJSON(this.$data.items)
-        await axios.post(`${API}/objs/${layerid}`, data)
+        await axios.post(`${API}/objs/${layerid}`, data, {
+          withCredentials: true
+        })
         this.$store.dispatch('toast', {
           message: 'Uloženo',
           type: 'success'
