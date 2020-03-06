@@ -1,4 +1,4 @@
-/* global axios, API, Papa, SMap, L, location, alert, */
+/* global axios, API, Papa, L, location, alert, _, prompt */
 
 const q = new URLSearchParams(window.location.search)
 const layerid = q.get('layerid')
@@ -12,7 +12,10 @@ function toGeoJSON (items) {
       return {
         type: 'Feature',
         properties: i.properties,
-        geometry: i.point
+        geometry: {
+          type: 'Point',
+          coordinates: i.point
+        }
       }
     })
   }
@@ -23,6 +26,7 @@ export default {
     return {
       file: null,
       fields: [
+        { key: '_id', label: 'ID' },
         {
           key: 'address',
           label: 'adresa',
@@ -32,11 +36,11 @@ export default {
           key: 'properties',
           label: 'Props',
           sortable: false
-        }
+        },
+        { key: 'actions', label: 'Akce' }
       ],
       items: [],
       addressLoaded: false,
-      failedRows: [],
       working: false
     }
   },
@@ -47,8 +51,10 @@ export default {
         delimiter: ':',
         header: true,
         complete: function (results) {
-          data.items = results.data.map(i => {
+          data.items = results.data.map((i, idx) => {
             return {
+              _id: idx,
+              point: null,
               properties: i,
               address: i.address
             }
@@ -56,22 +62,25 @@ export default {
         }
       })
     },
+    editPos: function (item) {
+      const map = this.$props.map
+      var gps = prompt('zadejte GPS (lat, lng)')
+      const parts = gps.split(',')
+      item.point = [Number(parts[0]), Number(parts[1])]
+      L.marker(item.point).addTo(map).bindPopup(item.properties)
+    },
     geoCode: async function () {
       const map = this.$props.map
       const promises = this.$data.items.map(i => {
-        i.point = null
         return axios.get(`http://api.mapy.cz/geocode?query=${i.address}`)
           .then(res => {
             const parsed = window.parseXml(res.data)
             const gps = parsed.result.point.item
-            i.point = {
-              type: 'Point',
-              coordinates: [Number(gps.y), Number(gps.x)]
-            }
-            L.marker([gps.y, gps.x]).addTo(map).bindPopup(i.properties)
+            i.point = [Number(gps.y), Number(gps.x)]
+            L.marker(i.point).addTo(map).bindPopup(i.properties)
           })
           .catch(_ => {
-            this.$data.failedRows.push(i)
+            // do nothing
           })
       })
       await Promise.all(promises)
@@ -99,6 +108,17 @@ export default {
     }
   },
   props: ['map'],
+  computed: {
+    allOk: function () {
+      let ok = true
+      _.each(this.$data.items, i => {
+        if (i.point === null) {
+          ok = false
+        }
+      })
+      return ok
+    }
+  },
   template: `
   <div>
     <div v-if="items.length === 0">
@@ -115,20 +135,23 @@ export default {
     </div>
 
     <div v-else>
-      <b-table small striped hover sort-icon-left no-local-sorting
+      <b-table small striped small hover sort-icon-left no-local-sorting
         id="maps-table"
         primary-key="id"
         :fields="fields"
         :items="items"
-      ></b-table>
-      <div v-if="failedRows.length > 0">
-        <h3>Neúspěšná hledání</h3>
-        {{ JSON.stringify(failedRows) }}
-      </div>
-      <b-button v-if="addressLoaded" class="mt-3" @click="save">
+      >
+        <template v-slot:cell(actions)="data">
+          <i v-if="data.item.point" style="color: green" class="fas fa-check"></i>
+          <b-button v-else size="sm" @click="editPos(data.item)">
+            edit
+          </b-button>
+        </template>
+      </b-table>
+      <b-button v-if="addressLoaded && allOk" class="mt-3" @click="save">
         Uložit
       </b-button>
-      <b-button class="mt-3" @click="geoCode">
+      <b-button v-if="!addressLoaded" class="mt-3" @click="geoCode">
         Získat adresy
       </b-button>
     </div>
