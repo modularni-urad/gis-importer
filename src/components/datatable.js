@@ -71,19 +71,20 @@ export default {
     },
     geoCode: async function () {
       const map = this.$props.map
-      const promises = this.$data.items.map(i => {
-        return axios.get(`http://api.mapy.cz/geocode?query=${i.address}`)
-          .then(res => {
-            const parsed = window.parseXml(res.data)
-            const gps = parsed.result.point.item
-            i.point = [Number(gps.y), Number(gps.x)]
-            L.marker(i.point).addTo(map).bindPopup(i.properties)
-          })
-          .catch(_ => {
-            // do nothing
-          })
-      })
-      await Promise.all(promises)
+      await this.$data.items.reduce((previousPromise, i) => {
+        return i.point !== null ? previousPromise : previousPromise.then(() => {
+          return axios.get(`http://api.mapy.cz/geocode?query=${i.address}`)
+            .then(res => {
+              const parsed = window.parseXml(res.data)
+              const gps = parsed.result.point.item
+              i.point = [Number(gps.y), Number(gps.x)]
+              L.marker(i.point).addTo(map).bindPopup(i.properties)
+            })
+            .catch(_ => {
+              // do nothing
+            })
+        })
+      }, Promise.resolve())
       this.$data.addressLoaded = true
     },
     save: async function () {
