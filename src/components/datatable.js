@@ -66,7 +66,7 @@ export default {
             const gps = parsed.result.point.item
             i.point = {
               type: 'Point',
-              coordinates: [gps.y, gps.x]
+              coordinates: [Number(gps.y), Number(gps.x)]
             }
             L.marker([gps.y, gps.x]).addTo(map).bindPopup(i.properties)
           })
