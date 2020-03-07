@@ -1,6 +1,13 @@
-/* global Vue, VueToast, L */
+/* global Vue, VueToast, L, APIKEY */
 import Store from './store.js'
 import DataTable from './components/datatable.js'
+
+// load google script
+var script = document.createElement('script')
+script.type = 'text/javascript'
+script.src = 'https://maps.googleapis.com/maps/api/js?key=' + APIKEY
+document.getElementsByTagName('head')[0].appendChild(script)
+// ------------------
 
 const store = Store()
 

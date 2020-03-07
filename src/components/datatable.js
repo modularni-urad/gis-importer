@@ -5,7 +5,6 @@ const layerid = q.get('layerid')
 if (!layerid) {
   alert('chybí req param layerid. Máte špatný odkaz')
 }
-const GEOCODEURL = 'https://maps.googleapis.com/maps/api/geocode/json'
 function toGeoJSON (items) {
   return {
     type: 'FeatureCollection',
@@ -73,18 +72,18 @@ export default {
     },
     geoCode: async function () {
       const map = this.$props.map
+      const geocoder = new google.maps.Geocoder();
       await this.$data.items.reduce((previousPromise, i) => {
         return i.point !== null ? previousPromise : previousPromise.then(() => {
-          return axios.get(`${GEOCODEURL}?key=${APIKEY}&address=${i.address}`)
-            .then(res => {
-              if (res.data.results[0].partial_match) return
-              const loc = res.data.results[0].geometry.location
-              i.point = [loc.lat, loc.lng]
+          return new Promise((resolve, reject) => {
+            geocoder.geocode({ address: i.address }, (results, status) => {
+              if (status === 'OK' && results[0].partial_match) return resolve()
+              const loc = results[0].geometry.location
+              i.point = [loc.lat(), loc.lng()]
               L.marker(i.point).addTo(map).bindPopup(i.properties)
+              resolve()
             })
-            .catch(_ => {
-              // do nothing
-            })
+          })
         })
       }, Promise.resolve())
       this.$data.addressLoaded = true
