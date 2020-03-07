@@ -8,3 +8,4 @@ js/main.js
 *.sh
 *.sqlite
 dist/bundle.js
+src/consts.js

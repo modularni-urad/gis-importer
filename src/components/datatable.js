@@ -1,10 +1,11 @@
-/* global axios, API, Papa, L, location, alert, _, prompt */
+/* global axios, API, Papa, L, location, alert, _, prompt, APIKEY */
 
 const q = new URLSearchParams(window.location.search)
 const layerid = q.get('layerid')
 if (!layerid) {
   alert('chybí req param layerid. Máte špatný odkaz')
 }
+const GEOCODEURL = 'https://maps.googleapis.com/maps/api/geocode/json'
 function toGeoJSON (items) {
   return {
     type: 'FeatureCollection',
@@ -65,6 +66,7 @@ export default {
     editPos: function (item) {
       const map = this.$props.map
       var gps = prompt('zadejte GPS (lat, lng)')
+      if (!gps) return
       const parts = gps.split(',')
       item.point = [Number(parts[0]), Number(parts[1])]
       L.marker(item.point).addTo(map).bindPopup(item.properties)
@@ -73,11 +75,11 @@ export default {
       const map = this.$props.map
       await this.$data.items.reduce((previousPromise, i) => {
         return i.point !== null ? previousPromise : previousPromise.then(() => {
-          return axios.get(`http://api.mapy.cz/geocode?query=${i.address}`)
+          return axios.get(`${GEOCODEURL}?key=${APIKEY}&address=${i.address}`)
             .then(res => {
-              const parsed = window.parseXml(res.data)
-              const gps = parsed.result.point.item
-              i.point = [Number(gps.y), Number(gps.x)]
+              if (res.data.results[0].partial_match) return
+              const loc = res.data.results[0].geometry.location
+              i.point = [loc.lat, loc.lng]
               L.marker(i.point).addTo(map).bindPopup(i.properties)
             })
             .catch(_ => {
