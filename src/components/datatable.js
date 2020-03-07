@@ -1,4 +1,4 @@
-/* global axios, API, Papa, L, location, alert, _, prompt, APIKEY */
+/* global axios, API, Papa, L, location, alert, _, prompt, google */
 
 const q = new URLSearchParams(window.location.search)
 const layerid = q.get('layerid')
@@ -72,17 +72,24 @@ export default {
     },
     geoCode: async function () {
       const map = this.$props.map
-      const geocoder = new google.maps.Geocoder();
+      const geocoder = new google.maps.Geocoder()
       await this.$data.items.reduce((previousPromise, i) => {
         return i.point !== null ? previousPromise : previousPromise.then(() => {
           return new Promise((resolve, reject) => {
-            geocoder.geocode({ address: i.address }, (results, status) => {
-              if (status === 'OK' && results[0].partial_match) return resolve()
-              const loc = results[0].geometry.location
-              i.point = [loc.lat(), loc.lng()]
-              L.marker(i.point).addTo(map).bindPopup(i.properties)
-              resolve()
-            })
+            setTimeout(() => {
+              geocoder.geocode({ address: i.address }, (results, status) => {
+                try {
+                  if (status === 'OK' && results[0].partial_match) throw new Error()
+                  const loc = results[0].geometry.location
+                  i.point = [loc.lat(), loc.lng()]
+                  L.marker(i.point).addTo(map).bindPopup(i.properties)
+                } catch (err) {
+                  // do nothing
+                } finally {
+                  resolve()
+                }
+              })
+            }, 1001)
           })
         })
       }, Promise.resolve())
