@@ -1,24 +1,9 @@
-/* global axios, API, Papa, L, location, alert, _, prompt, google */
-
+/* global axios, API, L, location, alert, _, prompt */
+import { geoCode, parseCSV, toGeoJSON } from './utils.js'
 const q = new URLSearchParams(window.location.search)
 const layerid = q.get('layerid')
 if (!layerid) {
   alert('chybí req param layerid. Máte špatný odkaz')
-}
-function toGeoJSON (items) {
-  return {
-    type: 'FeatureCollection',
-    features: items.map(i => {
-      return {
-        type: 'Feature',
-        properties: i.properties,
-        geometry: {
-          type: 'Point',
-          coordinates: i.point
-        }
-      }
-    })
-  }
 }
 
 export default {
@@ -27,16 +12,8 @@ export default {
       file: null,
       fields: [
         { key: '_id', label: 'ID' },
-        {
-          key: 'address',
-          label: 'adresa',
-          sortable: true
-        },
-        {
-          key: 'properties',
-          label: 'Props',
-          sortable: false
-        },
+        { key: 'address', label: 'adresa', sortable: true },
+        { key: 'properties', label: 'Props', sortable: false },
         { key: 'actions', label: 'Akce' }
       ],
       items: [],
@@ -45,22 +22,8 @@ export default {
     }
   },
   methods: {
-    submit: function () {
-      const data = this.$data
-      Papa.parse(this.$data.file, {
-        delimiter: ':',
-        header: true,
-        complete: function (results) {
-          data.items = results.data.map((i, idx) => {
-            return {
-              _id: idx,
-              point: null,
-              properties: i,
-              address: i.address
-            }
-          })
-        }
-      })
+    submit: async function () {
+      this.$data.items = await parseCSV(this.$data.file)
     },
     editPos: function (item) {
       const map = this.$props.map
@@ -72,26 +35,16 @@ export default {
     },
     geoCode: async function () {
       const map = this.$props.map
-      const geocoder = new google.maps.Geocoder()
       await this.$data.items.reduce((previousPromise, i) => {
-        return i.point !== null ? previousPromise : previousPromise.then(() => {
-          return new Promise((resolve, reject) => {
-            setTimeout(() => {
-              geocoder.geocode({ address: i.address }, (results, status) => {
-                try {
-                  if (status === 'OK' && results[0].partial_match) throw new Error()
-                  const loc = results[0].geometry.location
-                  i.point = [loc.lat(), loc.lng()]
-                  L.marker(i.point).addTo(map).bindPopup(i.properties)
-                } catch (err) {
-                  // do nothing
-                } finally {
-                  resolve()
-                }
-              })
-            }, 1001)
+        return i.point !== null ? previousPromise : previousPromise
+          .then(() => {
+            return geoCode(i.address)
           })
-        })
+          .then(coords => {
+            i.point = coords
+            L.marker(coords).addTo(map).bindPopup(i.properties)
+          })
+          .catch(_ => {})
       }, Promise.resolve())
       this.$data.addressLoaded = true
     },
