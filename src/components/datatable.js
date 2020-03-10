@@ -44,7 +44,9 @@ export default {
             i.point = coords
             L.marker(coords).addTo(map).bindPopup(i.properties)
           })
-          .catch(_ => {})
+          .catch(err => {
+            console.warn(err)
+          })
       }, Promise.resolve())
       this.$data.addressLoaded = true
     },
@@ -74,7 +76,7 @@ export default {
     allOk: function () {
       let ok = true
       _.each(this.$data.items, i => {
-        if (i.point === null) {
+        if (i.point === null || !i.point.length || i.point[0] === null || i.point[1] === null) {
           ok = false
         }
       })

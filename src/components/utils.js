@@ -1,4 +1,4 @@
-/* global axios, google, Papa, APIKEY */
+/* global axios, google, Papa, APIKEY, _ */
 
 let geocoder = null
 
@@ -17,7 +17,8 @@ function seznamGeoCode (address) {
     .then(res => {
       const parsed = window.parseXml(res.data)
       const gps = parsed.result.point.item
-      return [Number(gps.y), Number(gps.x)]
+      if (_.isArray(gps)) throw new Error('found more than 1 result')
+      return [parseFloat(gps.y), parseFloat(gps.x)]
     })
 }
 
