@@ -68,7 +68,7 @@ export function toGeoJSON (items) {
         properties: i.properties,
         geometry: {
           type: 'Point',
-          coordinates: i.point
+          coordinates: [i.point[1], i.point[0]]
         }
       }
     })
